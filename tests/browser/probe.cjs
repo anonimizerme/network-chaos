@@ -115,40 +115,73 @@ async function runInPopup(cdp, targetId, expression) {
 
 async function usePopup({ tabId, action, mode, attached, packetLoss, checkControls }) {
   const get = (id) => document.getElementById(id)
+  const visible = (id) => get(id).getClientRects().length > 0
   function layout() {
-    const elements = document.querySelectorAll('body, label[for="loss"], #loss-value, #loss, #reordering, #queue-length, footer')
-    return Array.from(elements, (element) => {
+    const elements = document.querySelectorAll(
+      'body, header, #mode-picker, #mode-picker label, label[for="loss"], #loss-value, #loss, #reordering, #queue-length',
+    )
+    const bounds = Array.from(elements, (element) => {
       const { x, y, width, height } = element.getBoundingClientRect()
       return [x, y, width, height].join(',')
-    }).join('|')
+    })
+    return [innerWidth, innerHeight, ...bounds].join('|')
   }
   let initialLayout
+  async function readState() {
+    const response = await chrome.runtime.sendMessage({ type: 'get-state', tabId })
+    if (!response.ok) throw Error(response.error)
+    return response.state
+  }
   async function until(condition, description) {
     const deadline = performance.now() + 2500
     while (!await condition()) {
+      if (initialLayout && layout() !== initialLayout) throw Error(`Popup layout shifted while waiting for ${description}`)
       if (performance.now() > deadline) throw Error(`Popup did not reach ${description}; debugger=${get('connection')?.textContent}`)
       await new Promise((ready) => setTimeout(ready, 20))
     }
   }
   await until(() => get('mode-picker')?.disabled === false, 'ready')
+  const width = document.body.getBoundingClientRect().width
+  if (width !== 376) throw Error(`Expected a 376px action popup, got ${width}px`)
   const prepare = get('prepare-webrtc')
   if (action === 'prepare') {
     if (!prepare?.getClientRects().length || prepare.disabled) throw Error('Prepare WebRTC is unavailable in unprepared Normal')
     prepare.click()
   } else if (action) {
-    const radio = get(`mode-${action}`)
-    if (radio.matches(':disabled')) throw Error(`${action} is disabled after Prepare`)
+    if (!visible('normal-info')) throw Error('Normal must be explained before choosing a mode on a prepared tab')
+    const radio = get(`mode-${mode}`)
+    if (radio.matches(':disabled')) throw Error(`${mode} is disabled after Prepare`)
     radio.click()
-    if (action === 'packet-loss') {
+    if (action === 'set-loss') {
       const loss = get('loss')
       if (checkControls) {
         if (document.documentElement.scrollWidth > window.innerWidth) throw Error('Popup content overflows horizontally')
-        get('reordering').click()
+        initialLayout = layout()
+        for (const id of ['reordering-hint', 'queue-hint']) {
+          const button = document.querySelector(`button[aria-describedby="${id}"]`)
+          button.focus()
+          if (!visible(id) || layout() !== initialLayout) throw Error(`Opening ${id} must show its description without shifting controls`)
+          button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+          if (visible(id) || layout() !== initialLayout) throw Error(`Escape must dismiss ${id} without shifting controls`)
+        }
+        const reorder = get('reordering')
         const queue = get('queue-length')
+        if (!visible('reordering') || !visible('queue-length') || queue.matches(':disabled') || reorder.checked) {
+          throw Error('Queue length must be editable with reordering off')
+        }
+        reorder.click()
+        await until(async () => {
+          const { options } = await readState()
+          return options.packetReordering && options.packetQueueLength === undefined
+        }, 'reordering with the default queue')
+        reorder.click()
         queue.value = '32'
         queue.dispatchEvent(new Event('input', { bubbles: true }))
         queue.dispatchEvent(new Event('change', { bubbles: true }))
-        initialLayout = layout()
+        await until(async () => {
+          const { options } = await readState()
+          return !options.packetReordering && options.packetQueueLength === 32
+        }, 'queue length with reordering off')
       }
       for (const value of checkControls ? [0, 9, 10, 99, 100, packetLoss] : [packetLoss]) {
         loss.value = String(value)
@@ -157,28 +190,39 @@ async function usePopup({ tabId, action, mode, attached, packetLoss, checkContro
         if (checkControls) {
           if (/Applying|Current mode/i.test(document.body.innerText)) throw Error('Redundant mode status is visible')
           if (layout() !== initialLayout) throw Error(`Popup layout shifted at ${value}%`)
-          if (value === 9 || value === 10) {
+          if (value === 0 || value === 9 || value === 10) {
+            await until(async () => {
+              const { mode, options } = await readState()
+              return mode === 'packet-loss' && options.packetLoss === value && options.packetQueueLength === 32
+                && options.packetReordering === get('reordering').checked
+            }, `confirmed Packet Loss ${value}%`)
             await new Promise((ready) => setTimeout(ready, 80))
             if (layout() !== initialLayout) throw Error(`Popup layout shifted while holding ${value}%`)
+            if (value === 0) get('reordering').click()
           }
         }
       }
       loss.dispatchEvent(new Event('change', { bubbles: true }))
     }
   }
-  const connection = attached ? 'CDP attached' : 'CDP detached'
+  const connection = attached ? 'Prepared' : 'Not prepared'
   await until(async () => {
     if (!get('error').hidden) throw Error(get('error').textContent)
-    const response = await chrome.runtime.sendMessage({ type: 'get-state', tabId })
-    if (!response.ok) throw Error(response.error)
-    const { state } = response
+    const state = await readState()
     return state.attached === attached && state.mode === mode
       && (mode !== 'packet-loss' || state.options.packetLoss === packetLoss)
       && (!checkControls || (state.options.packetReordering && state.options.packetQueueLength === 32))
       && get(`mode-${mode}`).checked && get('connection').textContent === connection
   }, `${mode}/${connection}`)
   if (checkControls && layout() !== initialLayout) throw Error('Popup layout shifted after committing the settings')
+  if (checkControls && (!get('reordering').checked || get('queue-length').value !== '32')) {
+    throw Error('The popup lost the selected packet options')
+  }
   if (Boolean(prepare.getClientRects().length) !== !attached) throw Error('Wrong Prepare button visibility')
+  if (attached && !visible('normal-info')) throw Error(`Normal guidance is missing in ${mode}`)
+  if (visible('loss') !== (mode === 'packet-loss')) {
+    throw Error('The loss slider must be visible only in Packet Loss')
+  }
   for (const name of ['packet-loss', 'offline']) {
     if (get(`mode-${name}`).matches(':disabled') !== !attached) throw Error(`Wrong ${name} availability`)
   }
@@ -293,7 +337,7 @@ async function main() {
         chrome.debugger.sendCommand({ tabId }, 'Page.getFrameTree').then(() => true, () => false), tabId)
       assert.equal(hasExtensionSession, attached, 'Unexpected extension CDP session')
     }
-    const setMode = (mode, packetLoss) => popupState({ action: mode, mode, packetLoss, attached: true })
+    const setMode = (mode, packetLoss) => popupState({ action: packetLoss === undefined ? 'select' : 'set-loss', mode, packetLoss, attached: true })
     const prepare = () => popupState({ action: 'prepare', attached: true })
 
     await popupState({ attached: false })
@@ -348,7 +392,7 @@ async function main() {
     }
     await setMode('normal')
     assertRtp(await observe(page, 'same call: Normal keeps the session attached'), true)
-    await setMode('packet-loss', 100)
+    await popupState({ action: 'select', mode: 'packet-loss', packetLoss: 100, attached: true })
     assertRtp(await observe(page, 'same call: Packet Loss 100% after Normal'), false)
     await setMode('packet-loss', 0)
     assertRtp(await observe(page, 'same call: RTP resumes at 0%'), true)
@@ -408,8 +452,8 @@ async function main() {
     await prepare()
     await popupState({ attached: true })
     assert.deepEqual(await fetchProbe(page), { status: 200, body: 'network-chaos-ping' })
-    await setMode('packet-loss', 25)
-    await popupState({ action: 'packet-loss', mode: 'packet-loss', attached: true, packetLoss: 37, checkControls: true })
+    await popupState({ action: 'select', mode: 'packet-loss', packetLoss: 25, attached: true })
+    await popupState({ action: 'set-loss', mode: 'packet-loss', attached: true, packetLoss: 37, checkControls: true })
   } finally {
     await context?.close()
     for (const socket of echo.clients) socket.terminate()

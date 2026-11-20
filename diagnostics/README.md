@@ -1,6 +1,6 @@
 # Network Chaos diagnostics
 
-**Before the caller places the call, click Prepare in the test tab and wait for Attached.** This applies to the callee's tab too. The initial mode is Normal. Once prepared, you can switch between Normal, Packet Loss and Offline during the call. If the socket already existed when you clicked Prepare, start a fresh connection and compare the change in `inbound-rtp.packetsReceived` at the receiver. Chromium registers each WebRTC UDP socket with the network emulator when it creates the socket. [Chromium UDP socket implementation](https://github.com/chromium/chromium/blob/main/services/network/p2p/socket_udp.cc) · [Chromium throttling rules](https://github.com/chromium/chromium/blob/main/services/network/throttling/throttling_controller.cc)
+**Before the caller places the call, click Prepare tab in the test tab and wait for Prepared.** This applies to the callee's tab too. The initial mode is Normal. Once prepared, you can switch between Normal, Packet Loss and Offline during the call. If the socket already existed when you clicked Prepare, start a fresh connection and compare the change in `inbound-rtp.packetsReceived` at the receiver. Chromium registers each WebRTC UDP socket with the network emulator when it creates the socket. [Chromium UDP socket implementation](https://github.com/chromium/chromium/blob/main/services/network/p2p/socket_udp.cc) · [Chromium throttling rules](https://github.com/chromium/chromium/blob/main/services/network/throttling/throttling_controller.cc)
 
 ## Modes
 
@@ -10,7 +10,7 @@
 | Packet Loss | Applies a Chrome DevTools Protocol (CDP) rule across the target tab. Set WebRTC packet loss from 0 to 100%, with optional packet reordering and a queue length limit. Added latency is 0 and throughput is unlimited. At 0% the rule stays in place, so you can adjust loss later on the same connection. |
 | Offline | Applies an offline rule, requests 100% WebRTC packet loss and separately sets `navigator.onLine` to `false` through CDP. The effect on existing connections depends on Chrome's implementation. |
 
-The popup shows the title of the tab you are controlling. Changes take effect immediately and stay active when you close the popup or switch tabs. Choose Normal to suspend emulation between measurements. Reloading the page or navigating to a new document ends the prepared session. A same-document route change preserves it. If the application ends the call or closes a WebSocket after a timeout, it must establish a new connection to resume.
+The popup controls the active tab in the current window. Changes take effect immediately and stay active on that tab when you close the popup or switch tabs. Choose Normal to suspend emulation between measurements. Reloading the page or navigating to a new document ends the prepared session. A same-document route change preserves it. If the application ends the call or closes a WebSocket after a timeout, it must establish a new connection to resume.
 
 The percentage in the popup is the loss rate configured in CDP. On the diagnostics page, both peers share a tab. Chromium applies loss on both send and receive, so the fraction of packets lost between these peers can exceed the slider value. In a call with a remote participant, measure each direction at its receiver. [Chromium P2P send and receive handling](https://github.com/chromium/chromium/blob/main/services/network/throttling/throttling_p2p_network_interceptor.cc)
 
@@ -74,4 +74,4 @@ Mock tests cover switching and reapplying modes, serializing operations, tab iso
 
 The manifest allows Chrome 118 and later. Emulation requires experimental Network commands. In Chrome builds that lack them, the popup shows the command error. The extension uses only the newer commands and has no fallback to the deprecated `Network.emulateNetworkConditions`. When the service worker restarts, it checks its existing debugger session and the prepared document before restoring a mode. If Chrome has ended the session, the user must prepare the page again.
 
-The extension requests `debugger` to send CDP commands, `activeTab` to read the selected tab's title when the popup opens and `storage` to keep session state.
+The extension requests `debugger` to send CDP commands and `storage` to keep session state.

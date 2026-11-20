@@ -10,14 +10,21 @@ const prepareHint = document.querySelector<HTMLElement>('#prepare-hint')!
 const reloadPanel = document.querySelector<HTMLElement>('#reload-panel')!
 const reloadExtension = document.querySelector<HTMLButtonElement>('#reload-extension')!
 const packetPanel = document.querySelector<HTMLFieldSetElement>('#packet-options')!
+const tooltips = Array.from(packetPanel.querySelectorAll<HTMLElement>('[role="tooltip"]'))
+const normalInfo = document.querySelector<HTMLElement>('#normal-info')!
 const offlinePanel = document.querySelector<HTMLElement>('#offline-info')!
-const title = document.querySelector<HTMLElement>('#tab-title')!
 const connection = document.querySelector<HTMLElement>('#connection')!
 const loss = document.querySelector<HTMLInputElement>('#loss')!
 const lossValue = document.querySelector<HTMLOutputElement>('#loss-value')!
 const reordering = document.querySelector<HTMLInputElement>('#reordering')!
 const queueLength = document.querySelector<HTMLInputElement>('#queue-length')!
 const errorNotice = document.querySelector<HTMLElement>('#error')!
+const connectionStates = {
+  detached: ['Not prepared', 'Chrome debugger detached'],
+  preparing: ['Preparing…', 'Preparing this tab through the Chrome debugger'],
+  attached: ['Prepared', 'Chrome debugger attached to this tab'],
+  unknown: ['Status unavailable', 'Chrome debugger state is unconfirmed'],
+} as const
 
 type Mutation = Exclude<Request, { type: 'get-state' }>
 type ReloadRequired = { ok: false; error: string; state?: undefined; reloadRequired: true }
@@ -53,14 +60,19 @@ function renderLoss() {
 
 function render(syncOptions = false) {
   const attached = background === 'ready' ? confirmed?.attached : undefined
-  const status = attached === true ? 'attached' : attached === false ? 'detached' : 'unknown'
-  if (connection.dataset.state !== status) {
-    connection.dataset.state = status
-    connection.textContent = `CDP ${status}`
-  }
-
   const known = attached != null && confirmed?.mode != null
   const ready = known && attached === true
+  const preparing = pending?.type === 'prepare'
+  const status = preparing ? 'preparing'
+    : !known ? 'unknown'
+    : ready ? 'attached' : 'detached'
+  if (connection.dataset.state !== status) {
+    connection.dataset.state = status
+    const [label, description] = connectionStates[status]
+    connection.textContent = label
+    connection.title = description
+  }
+
   const change = pending?.type === 'set-mode' ? pending : undefined
   const selected = known ? (ready ? change?.mode ?? confirmed?.mode : confirmed?.mode) : undefined
   picker.disabled = !known || (Boolean(pending) && !ready)
@@ -68,20 +80,22 @@ function render(syncOptions = false) {
     mode.checked = selected === mode.value
     mode.disabled = mode.value !== 'normal' && !ready
   })
-  const retry = background === 'ready' && !known && Boolean(error) && tabId !== undefined
+  const retry = background === 'ready' && !ready && Boolean(error) && tabId !== undefined
   preparePanel.hidden = background !== 'ready' || (!retry && (confirmed?.mode !== 'normal' || attached !== false))
-  prepare.textContent = retry ? 'Retry preparation' : 'Prepare'
-  prepareHint.textContent = retry
-    ? 'Retry to check the debugger and prepare this tab.'
-    : 'Prepare this tab before either participant starts the call. Then choose Packet Loss or Offline.'
+  prepare.textContent = preparing ? 'Preparing…' : retry ? 'Retry preparation' : 'Prepare tab'
+  prepareHint.textContent = retry && !known
+    ? 'Retry to check this tab and prepare it for testing.'
+    : 'Prepare before either participant dials. Existing calls may bypass packet loss.'
   prepare.disabled = Boolean(pending)
+  normalInfo.hidden = !ready
   packetPanel.hidden = packetPanel.disabled = !ready || selected !== 'packet-loss'
+  if (packetPanel.hidden) showTooltip()
   offlinePanel.hidden = !ready || selected !== 'offline' || confirmed?.mode !== 'offline'
   if (syncOptions && confirmed) setPacketInputs(confirmed.options)
   renderLoss()
 
   errorNotice.hidden = !error
-  errorNotice.textContent = error ?? ''
+  errorNotice.textContent = error && ready ? `${error} Check the selected mode and retry your change.` : error ?? ''
   reloadPanel.hidden = background !== 'reload'
 }
 
@@ -182,6 +196,32 @@ picker.addEventListener('change', (event) => {
 
 prepare.addEventListener('click', () => choose({ type: 'prepare' }, true))
 
+function showTooltip(active?: HTMLElement) {
+  for (const tip of tooltips) tip.hidden = tip !== active
+}
+
+for (const tip of tooltips) {
+  const help = tip.closest('.help')!
+  const trigger = help.querySelector('button')!
+  const show = () => showTooltip(tip)
+  help.addEventListener('pointerenter', show)
+  help.addEventListener('pointerleave', () => {
+    if (!trigger.matches(':focus-visible')) tip.hidden = true
+  })
+  trigger.addEventListener('focus', show)
+  trigger.addEventListener('blur', () => {
+    if (!help.matches(':hover')) tip.hidden = true
+  })
+  trigger.addEventListener('click', show)
+}
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && packetPanel.querySelector('[role="tooltip"]:not([hidden])')) {
+    showTooltip()
+    event.preventDefault()
+  }
+})
+
 reloadExtension.addEventListener('click', () => {
   reloadExtension.disabled = true
   try {
@@ -217,7 +257,6 @@ chrome.runtime.onMessage.addListener((message: StateChanged) => {
 async function init() {
   try {
     if (await chrome.tabs.getCurrent()) {
-      title.textContent = 'Open from the toolbar'
       error = 'Select the tab you want to test, then open Network Chaos from the Chrome toolbar.'
       render()
       return
@@ -225,14 +264,11 @@ async function init() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
     if (!isTabId(tab?.id)) throw new Error('No active tab found.')
     tabId = tab.id
-    title.textContent = tab.title || `Tab ${tabId}`
-    title.title = title.textContent
     const revision = pushRevision
     const response = await request({ type: 'get-state', tabId })
     if (revision === pushRevision || 'reloadRequired' in response) accept(response)
     else background = 'ready'
   } catch (cause) {
-    title.textContent = 'Active tab unavailable'
     error = `${errorMessage(cause)} Reopen the popup on the tab to retry.`
   }
   render(true)
