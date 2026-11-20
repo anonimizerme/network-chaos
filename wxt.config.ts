@@ -5,7 +5,7 @@ export default defineConfig({
   watchOptions: { ignored: ['**/dist/**', '**/dist-dev/**'] },
   manifest: {
     name: 'Network Chaos',
-    description: 'Test how a tab responds to Chrome DevTools packet loss and offline conditions.',
+    description: 'Simulate WebRTC packet loss in one Chrome tab. Test how a video call recovers and how your app behaves offline.',
     minimum_chrome_version: '118',
     permissions: ['debugger', 'storage'],
     action: { default_icon: { 16: 'icons/16.png', 32: 'icons/32.png' } },

@@ -1,0 +1,17 @@
+Name
+Network Chaos
+
+Category
+Developer Tools
+
+Short description
+Simulate WebRTC packet loss in one Chrome tab. Test how a video call recovers and how your app behaves offline.
+
+Detailed description
+What does the other person see when a video call starts dropping packets? Network Chaos lets you change WebRTC packet loss during a live call and watch how the remote video responds.
+
+Before either person starts the call, open Network Chaos in the tab you want to test. Click Prepare tab and wait for Prepared. Start the call, choose Packet Loss, and move the slider from 0% to 100%. Switch back to Normal to see how quickly the picture recovers. The tab stays prepared, so you can repeat the test on the same call.
+
+For more control, turn on packet reordering or set the packet queue length. To test your app’s offline experience, choose Offline. Chrome reports that the tab is offline and blocks supported requests. Existing WebSocket and WebRTC connections may keep working.
+
+You can close the popup while a test runs and reopen it to adjust the settings. Reloading the page resets the test.
