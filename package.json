@@ -1,0 +1,28 @@
+{
+  "name": "network-chaos",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^22.13.0 || >=24.0.0"
+  },
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "postinstall": "wxt prepare",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:browser": "node tests/browser/probe.cjs"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.3.7",
+    "@types/node": "^22.20.5",
+    "playwright": "^1.59.1",
+    "typescript": "5.9",
+    "vite": "^8.3.8",
+    "web-ext": "^10.8.0",
+    "ws": "^8.23.0",
+    "wxt": "^0.21.5"
+  }
+}

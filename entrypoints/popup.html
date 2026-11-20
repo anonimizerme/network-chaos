@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Network Chaos</title>
+    <script type="module" src="/src/popup.ts"></script>
+  </head>
+  <body>
+    <header>
+      <h1><img src="/icons/128.png" alt="" width="25" height="25" /> Network Chaos</h1>
+      <span id="connection" data-state="checking" role="status">Checking CDP…</span>
+    </header>
+
+    <main>
+      <section class="target" aria-label="Active tab">
+        <span class="caption">Active tab</span>
+        <strong id="tab-title">Loading…</strong>
+      </section>
+
+      <fieldset id="mode-picker" disabled>
+        <legend>Network mode</legend>
+        <div class="mode-options">
+          <label>
+            <input type="radio" name="mode" id="mode-normal" value="normal" />
+            <svg class="mode-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2 8.5a16 16 0 0 1 20 0M5.5 12.5a10.5 10.5 0 0 1 13 0M9 16.5a5 5 0 0 1 6 0" />
+              <circle cx="12" cy="20" r="1.3" fill="currentColor" stroke="none" />
+            </svg>
+            Normal
+          </label>
+          <label>
+            <input type="radio" name="mode" id="mode-packet-loss" value="packet-loss" disabled />
+            <svg class="mode-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2 12h4l3.5-7 5 14 3.5-7h4" />
+            </svg>
+            Packet Loss
+          </label>
+          <label>
+            <input type="radio" name="mode" id="mode-offline" value="offline" disabled />
+            <svg class="mode-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2 10.5h7.2L6.1 4h2.6l5.5 6.5H20c1 0 2 .7 2 1.5s-1 1.5-2 1.5h-5.8L8.7 20H6.1l3.1-6.5H4.6l-1.5 2H1.5L2.8 12 1.5 8.5h1.6l1.5 2z" fill="currentColor" stroke="none" />
+            </svg>
+            Offline
+          </label>
+        </div>
+      </fieldset>
+
+      <section id="prepare-panel" class="prepare" hidden>
+        <button id="prepare-webrtc" type="button" aria-describedby="prepare-hint">Prepare</button>
+        <p class="hint" id="prepare-hint"></p>
+      </section>
+
+      <fieldset id="packet-options" hidden disabled>
+        <legend class="sr-only">Packet Loss settings</legend>
+        <div>
+          <div class="option-row">
+            <label for="loss">Requested packet loss</label>
+            <output id="loss-value" for="loss" aria-hidden="true"></output>
+          </div>
+          <input id="loss" type="range" min="0" max="100" step="1" value="0" />
+          <div class="scale" aria-hidden="true"><span>0%</span><span>100%</span></div>
+        </div>
+        <div class="packet-settings">
+          <div class="reordering-row">
+            <label for="reordering">Packet reordering</label>
+            <details class="help">
+              <summary aria-label="About packet reordering"><span aria-hidden="true">?</span></summary>
+              <p id="reordering-hint">Allows WebRTC packets to arrive out of order. For example, packet 3 can arrive before packet 2.</p>
+            </details>
+            <input id="reordering" type="checkbox" role="switch" aria-describedby="reordering-hint" />
+          </div>
+          <div class="queue-row">
+            <label for="queue-length">Queue length</label>
+            <details class="help">
+              <summary aria-label="About queue length"><span aria-hidden="true">?</span></summary>
+              <p id="queue-hint">Maximum number of WebRTC packets waiting to be sent. Chrome drops new packets when the queue is full. Leave blank for Chrome’s default (Auto). Use 0 for no limit.</p>
+            </details>
+            <input id="queue-length" type="number" min="0" max="2147483647" step="1" inputmode="numeric"
+              placeholder="Auto" aria-describedby="queue-hint" />
+          </div>
+        </div>
+      </fieldset>
+
+      <section id="offline-info" class="offline" aria-labelledby="offline-heading" hidden>
+        <h2 id="offline-heading">Offline emulation</h2>
+        <p>Chrome blocks supported requests and reports offline. Existing WebSocket and WebRTC traffic can still flow.</p>
+      </section>
+
+      <p id="error" role="alert" hidden></p>
+      <section id="reload-panel" class="prepare" hidden>
+        <button id="reload-extension" type="button" aria-describedby="reload-hint">Reload extension</button>
+        <p id="reload-hint" class="hint">Reload clears preparation and emulation in all tabs. Reopen Network Chaos afterward.</p>
+      </section>
+      <footer class="hint">
+        <p>Set loss to 0% before dialing and between tests.</p>
+        <p>Normal keeps this tab prepared. Calls started before preparation may bypass packet loss.</p>
+      </footer>
+    </main>
+  </body>
+</html>

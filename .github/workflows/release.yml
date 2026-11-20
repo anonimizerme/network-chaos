@@ -1,0 +1,31 @@
+name: Release Chrome extension
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+
+jobs:
+  release:
+    if: github.event.created
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run zip
+      - name: Publish extension ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive=".output/network-chaos-${GITHUB_REF_NAME#v}-chrome.zip"
+          unzip -t "$archive"
+          gh release create "$GITHUB_REF_NAME" "$archive" --verify-tag --generate-notes

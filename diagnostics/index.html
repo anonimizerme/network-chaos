@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Network Chaos · Диагностика</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        background: #11141b;
+        color: #ecf0f6;
+        font: 16px/1.5 system-ui, sans-serif;
+      }
+      body { max-width: 76rem; margin: 3rem auto; padding: 0 1rem; }
+      h1, h2 { line-height: 1.2; }
+      h2 { margin: 2rem 0 0.75rem; }
+      p { color: #bcc5d5; }
+      .controls { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+      button, input { padding: 0.5rem 0.75rem; font: inherit; }
+      input { width: min(21rem, 100%); box-sizing: border-box; }
+      .table-scroll { overflow-x: auto; }
+      table { width: 100%; border-collapse: collapse; background: #181e29; text-align: left; }
+      th, td { padding: 0.55rem 0.75rem; border-bottom: 1px solid #39445b; white-space: nowrap; }
+      thead { color: #bcc5d5; font-size: 0.875rem; }
+      td { font: 0.875rem ui-monospace, monospace; }
+      .ok { color: #88e0cb; }
+      .error { color: #ffb5b6; }
+    </style>
+    <script src="diagnostics.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <h1>Network Chaos · Диагностика</h1>
+      <p>Два WebRTC-пира в этой вкладке обмениваются синтетическим аудио без микрофона и внешнего сервера. Для проверки потерь выберите Packet Loss 0% перед началом звонка, затем меняйте процент во время передачи RTP.</p>
+      <div class="controls">
+        <button id="start" type="button">Начать звонок</button>
+        <button id="stop" type="button" disabled>Завершить</button>
+        <output id="status" role="status">Звонок остановлен</output>
+      </div>
+      <p><code>navigator.onLine</code> <output id="online" aria-live="polite">—</output></p>
+      <h2 id="connection-heading">Состояние WebRTC</h2>
+      <div class="table-scroll">
+        <table id="webrtc-peers" aria-labelledby="connection-heading">
+          <thead>
+            <tr><th scope="col">Пир</th><th scope="col">connectionState</th><th scope="col">iceConnectionState</th><th scope="col">signalingState</th><th scope="col">Транспорт</th><th scope="col">RTT ICE, мс</th></tr>
+          </thead>
+          <tbody>
+            <tr data-peer="a"><th scope="row">A</th><td data-stat="connectionState">—</td><td data-stat="iceConnectionState">—</td><td data-stat="signalingState">—</td><td data-stat="protocol">—</td><td data-stat="rtt">—</td></tr>
+            <tr data-peer="b"><th scope="row">B</th><td data-stat="connectionState">—</td><td data-stat="iceConnectionState">—</td><td data-stat="signalingState">—</td><td data-stat="protocol">—</td><td data-stat="rtt">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h2 id="rtp-heading">RTP по направлениям</h2>
+      <div class="table-scroll">
+        <table id="webrtc-stats" aria-labelledby="rtp-heading" aria-describedby="rtp-help">
+          <thead>
+            <tr><th scope="col">Поток</th><th scope="col">packetsSent</th><th scope="col">Δ sent</th><th scope="col">packetsReceived</th><th scope="col">Δ received</th><th scope="col">packetsLost</th><th scope="col">bytesSent</th><th scope="col">bytesReceived</th><th scope="col">Jitter, мс</th></tr>
+          </thead>
+          <tbody>
+            <tr data-flow="a-to-b"><th scope="row">A → B</th><td data-stat="packetsSent">—</td><td data-stat="deltaSent">—</td><td data-stat="packetsReceived">—</td><td data-stat="deltaReceived">—</td><td data-stat="packetsLost">—</td><td data-stat="bytesSent">—</td><td data-stat="bytesReceived">—</td><td data-stat="jitter">—</td></tr>
+            <tr data-flow="b-to-a"><th scope="row">B → A</th><td data-stat="packetsSent">—</td><td data-stat="deltaSent">—</td><td data-stat="packetsReceived">—</td><td data-stat="deltaReceived">—</td><td data-stat="packetsLost">—</td><td data-stat="bytesSent">—</td><td data-stat="bytesReceived">—</td><td data-stat="jitter">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p id="rtp-help">Δ показывает прирост между выборками (около секунды). «—» означает, что данных пока нет. При полном обрыве <code>packetsLost</code> может стоять на месте до получения следующего пакета. Следите за Δ received в обоих направлениях.</p>
+      <h2>WebSocket echo</h2>
+      <p>Укажите доступный echo-адрес, чтобы наблюдать обмен по одному открытому сокету при смене режимов.</p>
+      <form id="websocket-form" class="controls">
+        <label for="websocket-url">Echo URL</label>
+        <input id="websocket-url" type="url" placeholder="wss://…" required>
+        <button id="websocket-start" type="submit">Подключить</button>
+        <button id="websocket-stop" type="button" disabled>Закрыть</button>
+      </form>
+      <p>Сокет <output id="websocket-status" role="status">закрыт</output> · Вызовы send() <output id="websocket-sent">0</output> · Ответы echo <output id="websocket-received">0</output></p>
+    </main>
+  </body>
+</html>
