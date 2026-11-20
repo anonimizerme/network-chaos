@@ -4,7 +4,7 @@ A Chrome extension for simulating WebRTC packet loss and offline conditions in a
 
 ## Installation
 
-**Download the extension.** Open **Releases** on the repository's GitHub page. Under **Assets** in the latest release, download `network-chaos-<version>-chrome.zip` and extract it.
+**Download the extension.** Open the [latest release](https://github.com/anonimizerme/network-chaos/releases/latest). Under **Assets**, download `network-chaos-<version>-chrome.zip` and extract it.
 
 **Or build from source.** With Node.js 22.13 or later in the 22.x series, or Node.js 24 or later, run these commands from the project root. The build creates the `dist/` folder.
 
@@ -39,4 +39,6 @@ Run `npm run dev` to reload the extension as you edit. Use `npm test` for unit t
 
 To run the browser test, build the extension, run `npx playwright install chromium`, then run `npm run test:browser`. For manual testing, see the [diagnostics page](./diagnostics/index.html) and [test scenarios and results](./diagnostics/README.md).
 
-To publish a release, push a new tag matching the version in `package.json`, for example `v1.0.0` for version `1.0.0`. GitHub Actions runs the checks, builds the ZIP, and attaches it to the release.
+To publish from GitHub, open [Actions → Release Chrome extension](https://github.com/anonimizerme/network-chaos/actions/workflows/release.yml), click **Run workflow**, select the branch, and confirm. After the checks and build pass, the workflow tags the selected commit with the version from `package.json` (for example, `v1.0.0`) and publishes the ZIP in GitHub Releases. Bump the package version before publishing the next release.
+
+You can also trigger the same release by pushing a matching tag.
