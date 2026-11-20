@@ -1,8 +1,14 @@
+import { resolve } from 'node:path'
 import { defineConfig } from 'wxt'
 
 export default defineConfig({
   outDirTemplate: '../dist{{modeSuffix}}',
   watchOptions: { ignored: ['**/dist/**', '**/dist-dev/**'] },
+  hooks: {
+    'build:publicAssets'(wxt, files) {
+      files.push({ absoluteSrc: resolve(wxt.config.root, 'LICENSE'), relativeDest: 'LICENSE' })
+    },
+  },
   manifest: {
     name: 'Network Chaos',
     description: 'Simulate WebRTC packet loss in one Chrome tab. Test how a video call recovers and how your app behaves offline.',
