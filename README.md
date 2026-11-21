@@ -4,6 +4,10 @@ A Chrome extension for simulating WebRTC packet loss and offline conditions in a
 
 ## Installation
 
+### Install from the Chrome Web Store
+
+Open [Network Chaos in the Chrome Web Store](https://chromewebstore.google.com/detail/network-chaos/diigkhlaldjapoonaebdaflaodjcjifl), click **Add to Chrome**, then confirm with **Add extension**.
+
 ### Install from a release ZIP
 
 1. Download `network-chaos-<version>-chrome.zip` from **Assets** on the [latest release](https://github.com/anonimizerme/network-chaos/releases/latest).
@@ -22,7 +26,7 @@ npm run build
 
 Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and select the generated `dist/` folder.
 
-### Update an installed copy
+### Update an unpacked copy
 
 Extract the new release ZIP into the same folder, replacing the old files. For a local build, run `npm run build` again. Then click **Reload** (⟳) on the Network Chaos card at `chrome://extensions`. If the popup detects an older background worker, you can click **Reload extension** in the popup instead. Reloading the extension ends its active emulation sessions. To resume testing, reopen Network Chaos on the test tab and click **Prepare tab** again.
 
